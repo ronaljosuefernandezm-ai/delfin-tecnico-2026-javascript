@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Quiz Pro</title>
+    <style>
+        /* Estilos CSS incluidos */
+        :root {
+            --primary: #4a90e2;
+            --bg: #f4f7f6;
+            --text: #333;
+            --success: #48bb78;
+            --error: #f56565;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #quiz-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .question {
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            color: var(--text);
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 1rem;
+            border: 2px solid var(--primary);
+            background: white;
+            color: var(--primary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        button.correct {
+            background-color: var(--success) !important;
+            border-color: var(--success);
+            color: white;
+        }
+
+        button.wrong {
+            background-color: var(--error) !important;
+            border-color: var(--error);
+            color: white;
+        }
+
+        #score-container {
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="game-box">
+        <div class="question" id="question-text">Cargando pregunta...</div>
+        <div class="options-grid" id="answer-buttons">
+            </div>
+    </div>
+    
+    <div id="result-screen" class="hidden">
+        <h2>¡Juego Terminado!</h2>
+        <p id="final-score"></p>
+        <button onclick="restartGame()">Jugar de nuevo</button>
+    </div>
+</div>
+
+<script>
+    // Lógica de JavaScript
+    const questions = [
+        {
+            question: "¿Cuál es el planeta más grande del sistema solar?",
+            answers: [
+                { text: "Marte", correct: false },
+                { text: "Júpiter", correct: true },
+                { text: "Saturno", correct: false },
+                { text: "Venus", correct: false }
+            ]
+        },
+        {
+            question: "¿Quién pintó la 'Mona Lisa'?",
+            answers: [
+                { text: "Van Gogh", correct: false },
+                { text: "Dalí", correct: false },
+                { text: "Da Vinci", correct: true },
+                { text: "Picasso", correct: false }
+            ]
+        },
+        {
+            question: "¿Qué lenguaje se usa para dar estilo a la web?",
+            answers: [
+                { text: "HTML", correct: false },
+                { text: "Python", correct: false },
+                { text: "CSS", correct: true },
+                { text: "Java", correct: false }
+            ]
+        }
+    ];
+
+    let currentQuestionIndex = 0;
+    let score = 0;
+
+    const questionElement = document.getElementById('question-text');
+    const answerButtonsElement = document.getElementById('answer-buttons');
+    const gameBox = document.getElementById('game-box');
+    const resultScreen = document.getElementById('result-screen');
+    const finalScoreText = document.getElementById('final-score');
+
+    function startGame() {
+        currentQuestionIndex = 0;
+        score = 0;
+        gameBox.classList.remove('hidden');
+        resultScreen.classList.add('hidden');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        resetState();
+        let currentQuestion = questions[currentQuestionIndex];
+        questionElement.innerText = currentQuestion.question;
+
+        currentQuestion.answers.forEach(answer => {
+            const button = document.createElement('button');
+            button.innerText = answer.text;
+            button.classList.add('btn');
+            button.addEventListener('click', () => selectAnswer(answer, button));
+            answerButtonsElement.appendChild(button);
+        });
+    }
+
+    function resetState() {
+        while (answerButtonsElement.firstChild) {
+            answerButtonsElement.removeChild(answerButtonsElement.firstChild);
+        }
+    }
+
+    function selectAnswer(answer, button) {
+        if (answer.correct) {
+            score++;
+            button.classList.add('correct');
+        } else {
+            button.classList.add('wrong');
+        }
+
+        // Bloquear botones tras elegir
+        Array.from(answerButtonsElement.children).forEach(btn => btn.disabled = true);
+
+        // Esperar un segundo para la siguiente pregunta
+        setTimeout(() => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                showQuestion();
+            } else {
+                showResults();
+            }
+        }, 1000);
+    }
+
+    function showResults() {
+        gameBox.classList.add('hidden');
+        resultScreen.classList.remove('hidden');
+        finalScoreText.innerText = `Puntaje: ${score} de ${questions.length}`;
+    }
+
+    function restartGame() {
+        startGame();
+    }
+
+    // Iniciar al cargar
+    startGame();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Master Challenge</title>
+    <style>
+        /* Estilos CSS Modernos */
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #38bdf8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --text: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #game-container {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #question {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            display: block;
+        }
+
+        .options-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .option-btn {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            color: var(--text);
+            padding: 15px;
+            font-size: 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .option-btn:hover {
+            background: var(--accent);
+            color: var(--bg-color);
+            transform: translateY(-3px);
+        }
+
+        .correct { background-color: var(--success) !important; border-color: var(--success); }
+        .wrong { background-color: var(--error) !important; border-color: var(--error); }
+
+        #score-board { font-size: 1.2rem; margin-top: 20px; }
+        
+        .hidden { display: none; }
+
+        button#restart-btn {
+            margin-top: 20px;
+            background: var(--accent);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="quiz-ui">
+        <div class="header">
+            <span>Puntos: <b id="score">0</b></span>
+            <span>Ronda: <b id="round">1/5</b></span>
+        </div>
+        
+        <div id="question">2 + 2</div>
+
+        <div class="options-container" id="options">
+            </div>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h1>🏆 Fin del Juego</h1>
+        <p id="final-msg"></p>
+        <button id="restart-btn" onclick="initGame()">Reiniciar Desafío</button>
+    </div>
+</div>
+
+<script>
+    // Configuración del Juego
+    let currentScore = 0;
+    let currentRound = 1;
+    const totalRounds = 10;
+    let correctAnswer = 0;
+
+    const questionEl = document.getElementById('question');
+    const optionsEl = document.getElementById('options');
+    const scoreEl = document.getElementById('score');
+    const roundEl = document.getElementById('round');
+    const quizUI = document.getElementById('quiz-ui');
+    const resultScreen = document.getElementById('result-screen');
+    const finalMsg = document.getElementById('final-msg');
+
+    function generateQuestion() {
+        // Generar números aleatorios según la dificultad (puedes ajustar el 20)
+        const num1 = Math.floor(Math.random() * 15) + 1;
+        const num2 = Math.floor(Math.random() * 15) + 1;
+        const operators = ['+', '-', '*'];
+        const op = operators[Math.floor(Math.random() * operators.length)];
+
+        questionEl.innerText = `${num1} ${op} ${num2}`;
+        
+        // Calcular respuesta real
+        if(op === '+') correctAnswer = num1 + num2;
+        if(op === '-') correctAnswer = num1 - num2;
+        if(op === '*') correctAnswer = num1 * num2;
+
+        generateOptions(correctAnswer);
+    }
+
+    function generateOptions(correct) {
+        optionsEl.innerHTML = '';
+        let answers = [correct];
+
+        // Crear 3 respuestas falsas cercanas a la correcta
+        while(answers.length < 4) {
+            let fake = correct + (Math.floor(Math.random() * 10) - 5);
+            if(!answers.includes(fake)) answers.push(fake);
+        }
+
+        // Mezclar respuestas
+        answers.sort(() => Math.random() - 0.5);
+
+        answers.forEach(val => {
+            const btn = document.createElement('button');
+            btn.classList.add('option-btn');
+            btn.innerText = val;
+            btn.onclick = () => checkAnswer(val, btn);
+            optionsEl.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selected, btn) {
+        const buttons = document.querySelectorAll('.option-btn');
+        buttons.forEach(b => b.disabled = true);
+
+        if(selected === correctAnswer) {
+            btn.classList.add('correct');
+            currentScore += 10;
+        } else {
+            btn.classList.add('wrong');
+            // Mostrar la correcta sutilmente
+            buttons.forEach(b => {
+                if(parseInt(b.innerText) === correctAnswer) b.classList.add('correct');
+            });
+        }
+
+        setTimeout(() => {
+            if(currentRound < totalRounds) {
+                currentRound++;
+                updateUI();
+                generateQuestion();
+            } else {
+                showResults();
+            }
+        }, 1000);
+    }
+
+    function updateUI() {
+        scoreEl.innerText = currentScore;
+        roundEl.innerText = `${currentRound}/${totalRounds}`;
+    }
+
+    function showResults() {
+        quizUI.classList.add('hidden');
+        resultScreen.classList.remove('hidden');
+        finalMsg.innerText = `Lograste ${currentScore} puntos de un máximo de ${totalRounds * 10}.`;
+    }
+
+    function initGame() {
+        currentScore = 0;
+        currentRound = 1;
+        updateUI();
+        quizUI.classList.remove('hidden');
+        resultScreen.classList.add('hidden');
+        generateQuestion();
+    }
+
+    // Arrancar el juego
+    initGame();
+</script>
+
+</body>
+</html>
