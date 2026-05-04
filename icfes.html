@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulacro PRO - 278 Preguntas</title>
+    <style>
+        :root {
+            --primary: #1a2a6c;
+            --accent: #f24e1e;
+            --bg: #f0f2f5;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; }
+
+        .status-bar {
+            background: var(--primary); color: white; width: 90%; max-width: 800px;
+            padding: 15px; border-radius: 10px; display: flex; justify-content: space-around;
+            position: sticky; top: 10px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .timer-warning { color: #ffeb3b; font-weight: bold; animation: blink 1s infinite; }
+
+        .wheel-box { position: relative; width: 260px; height: 260px; margin: 10px 0; }
+        #canvas { width: 100%; height: 100%; border-radius: 50%; transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1); border: 5px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .arrow { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px; background: var(--accent); clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 5; }
+        #spin-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 65px; height: 65px; border-radius: 50%; border: none; background: #333; color: white; cursor: pointer; font-weight: bold; font-size: 12px; box-shadow: 0 4px 0 #000; }
+        #spin-btn:active { transform: translate(-50%, -48%); box-shadow: 0 2px 0 #000; }
+        #spin-btn:disabled { background: #999; cursor: not-allowed; }
+
+        #quiz-container { background: white; width: 90%; max-width: 700px; padding: 25px; border-radius: 15px; display: none; margin-top: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); margin-bottom: 50px; }
+        .subject-label { font-weight: bold; text-transform: uppercase; padding: 5px 12px; border-radius: 5px; color: white; display: inline-block; margin-bottom: 15px; font-size: 0.8rem; }
+        .option { display: block; width: 100%; padding: 15px; margin: 10px 0; border: 2px solid #eee; border-radius: 10px; text-align: left; cursor: pointer; background: white; font-size: 1rem; transition: 0.2s; }
+        .option:hover { background: #f0f7ff; border-color: var(--primary); }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="status-bar">
+        <div>⏳ <span id="timer">04:00:00</span></div>
+        <div>📝 <span id="counter">0</span>/278</div>
+        <div>🏆 <span id="score">0</span> pts</div>
+    </div>
+
+    <div class="wheel-box">
+        <div class="arrow"></div>
+        <canvas id="canvas" width="300" height="300"></canvas>
+        <button id="spin-btn" onclick="spin()">GIRAR</button>
+    </div>
+
+    <div id="quiz-container">
+        <div id="materia-tag" class="subject-label"></div>
+        <p id="pregunta-texto" style="font-size: 1.1rem; font-weight: 500; line-height: 1.4;"></p>
+        <div id="opciones-box"></div>
+    </div>
+
+<script>
+    // --- BANCO DE PREGUNTAS AMPLIADO ---
+    const bancoPreguntas = [
+        // MATEMÁTICAS
+        { cat: "Matemáticas", q: "Un tanque se llena en 4 horas con un grifo A. ¿En cuánto se llena con dos grifos iguales funcionando a la vez?", o: ["2 horas", "4 horas", "8 horas", "1 hora"], c: "2 horas" },
+        { cat: "Matemáticas", q: "Si el 20% de x es 40, ¿cuál es el valor de x?", o: ["200", "150", "80", "400"], c: "200" },
+        { cat: "Matemáticas", q: "¿Cuál es el área de un círculo cuyo diámetro mide 10 unidades?", o: ["25π", "100π", "5π", "50π"], c: "25π" },
+        { cat: "Matemáticas", q: "En una bolsa hay 3 bolas rojas y 2 blancas. ¿Probabilidad de sacar una roja?", o: ["3/5", "2/5", "1/2", "3/2"], c: "3/5" },
+        { cat: "Matemáticas", q: "Simplifica: 2x + 3(x - 1)", o: ["5x - 3", "5x - 1", "6x - 3", "5x + 3"], c: "5x - 3" },
+        { cat: "Matemáticas", q: "¿Qué número sigue en la serie: 2, 6, 12, 20, ...?", o: ["30", "28", "26", "32"], c: "30" },
+
+        // LECTURA CRÍTICA
+        { cat: "Lectura Crítica", q: "La intención principal de un editorial periodístico es:", o: ["Persuadir/Opinar", "Informar objetivamente", "Entretener al lector", "Publicar avisos"], c: "Persuadir/Opinar" },
+        { cat: "Lectura Crítica", q: "¿Qué figura literaria se usa en 'El tiempo es oro'?", o: ["Metáfora", "Símil", "Hipérbole", "Personificación"], c: "Metáfora" },
+        { cat: "Lectura Crítica", q: "Un argumento inductivo se caracteriza por:", o: ["Ir de lo particular a lo general", "Ir de lo general a lo particular", "Negar la premisa", "Ser siempre falso"], c: "Ir de lo particular a lo general" },
+        { cat: "Lectura Crítica", q: "Si un texto presenta una tesis y argumentos, su estructura es:", o: ["Argumentativa", "Narrativa", "Descriptiva", "Expositiva"], c: "Argumentativa" },
+        { cat: "Lectura Crítica", q: "En la frase 'Sin embargo, llegó tarde', el conector es de tipo:", o: ["Oposición", "Causa", "Consecuencia", "Adición"], c: "Oposición" },
+
+        // CIENCIAS NATURALES
+        { cat: "Ciencias Naturales", q: "¿Qué organelo es responsable de la respiración celular?", o: ["Mitocondria", "Ribosoma", "Núcleo", "Lisosoma"], c: "Mitocondria" },
+        { cat: "Ciencias Naturales", q: "El pH de una sustancia neutra es:", o: ["7", "0", "14", "1"], c: "7" },
+        { cat: "Ciencias Naturales", q: "¿Cuál es el proceso por el cual las plantas producen su alimento?", o: ["Fotosíntesis", "Ósmosis", "Mitosis", "Respiración"], c: "Fotosíntesis" },
+        { cat: "Ciencias Naturales", q: "La unidad básica de la herencia es:", o: ["El gen", "La célula", "La proteína", "El ARN"], c: "El gen" },
+        { cat: "Ciencias Naturales", q: "¿Cuál de estos es un gas de efecto invernadero?", o: ["CO2", "Oxígeno", "Nitrógeno", "Argón"], c: "CO2" },
+        { cat: "Ciencias Naturales", q: "La ley de acción y reacción es la:", o: ["3ra Ley de Newton", "1ra Ley de Newton", "Ley de Gravedad", "2da Ley de Newton"], c: "3ra Ley de Newton" },
+
+        // SOCIALES
+        { cat: "Sociales", q: "La Revolución Industrial nació en:", o: ["Inglaterra", "Francia", "EE.UU", "Alemania"], c: "Inglaterra" },
+        { cat: "Sociales", q: "¿En qué año se descubrió América?", o: ["1492", "1500", "1450", "1521"], c: "1492" },
+        { cat: "Sociales", q: "La división de poderes (Ejecutivo, Legislativo, Judicial) fue propuesta por:", o: ["Montesquieu", "Rousseau", "Locke", "Marx"], c: "Montesquieu" },
+        { cat: "Sociales", q: "¿Cuál es el río más largo del mundo?", o: ["Amazonas", "Nilo", "Misisipi", "Yangtsé"], c: "Amazonas" },
+        { cat: "Sociales", q: "El muro de Berlín cayó en el año:", o: ["1989", "1991", "1945", "1975"], c: "1989" },
+        { cat: "Sociales", q: "Sistema económico basado en la propiedad privada:", o: ["Capitalismo", "Socialismo", "Feudalismo", "Comunismo"], c: "Capitalismo" },
+
+        // INGLÉS
+        { cat: "Inglés", q: "I have __ my homework already.", o: ["done", "do", "did", "doing"], c: "done" },
+        { cat: "Inglés", q: "She __ to the gym every morning.", o: ["goes", "go", "going", "gone"], c: "goes" },
+        { cat: "Inglés", q: "__ you help me with this box, please?", o: ["Can", "Are", "Do", "Have"], c: "Can" },
+        { cat: "Inglés", q: "If it rains, I __ at home.", o: ["will stay", "stayed", "stay", "am stay"], c: "will stay" },
+        { cat: "Inglés", q: "Which is the superlative of 'Good'?", o: ["The best", "Better", "The goodest", "Gooder"], c: "The best" },
+        { cat: "Inglés", q: "He is interested __ learning French.", o: ["in", "at", "on", "for"], c: "in" }
+    ];
+
+    // Variables de Estado
+    let respondidasIndices = new Set();
+    let score = 0;
+    let totalSeconds = 4 * 60 * 60;
+    const subjects = [
+        { name: "Matemáticas", color: "#e74c3c" },
+        { name: "Lectura Crítica", color: "#3498db" },
+        { name: "Ciencias Naturales", color: "#2ecc71" },
+        { name: "Sociales", color: "#f1c40f" },
+        { name: "Inglés", color: "#9b59b6" }
+    ];
+
+    // Cronómetro
+    const timerElement = document.getElementById('timer');
+    const interval = setInterval(() => {
+        totalSeconds--;
+        let h = Math.floor(totalSeconds / 3600);
+        let m = Math.floor((totalSeconds % 3600) / 60);
+        let s = totalSeconds % 60;
+        timerElement.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        if(totalSeconds < 600) timerElement.classList.add('timer-warning');
+        if(totalSeconds <= 0) { clearInterval(interval); alert("Tiempo agotado"); }
+    }, 1000);
+
+    // Dibujar Ruleta
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    function draw() {
+        let angle = (2 * Math.PI) / subjects.length;
+        subjects.forEach((s, i) => {
+            ctx.beginPath(); ctx.fillStyle = s.color; ctx.moveTo(150, 150);
+            ctx.arc(150, 150, 150, i * angle, (i + 1) * angle); ctx.fill();
+            ctx.save(); ctx.translate(150, 150); ctx.rotate(i * angle + angle/2);
+            ctx.fillStyle = "white"; ctx.font = "bold 12px Arial"; ctx.fillText(s.name, 50, 5); ctx.restore();
+        });
+    }
+    draw();
+
+    // Lógica de Giro
+    function spin() {
+        if(respondidasIndices.size >= bancoPreguntas.length) return alert("¡Has terminado todas las preguntas disponibles!");
+        
+        document.getElementById('spin-btn').disabled = true;
+        const extraDeg = Math.floor(Math.random() * 360) + 1800;
+        canvas.style.transform = `rotate(${extraDeg}deg)`;
+
+        setTimeout(() => {
+            const actualDeg = extraDeg % 360;
+            const index = Math.floor((360 - (actualDeg)) / (360 / subjects.length)) % subjects.length;
+            generarPregunta(subjects[index].name);
+        }, 4000);
+    }
+
+    function generarPregunta(materia) {
+        // Filtrar índices de preguntas que coincidan con la materia y NO estén en respondidasIndices
+        const disponibles = [];
+        bancoPreguntas.forEach((p, idx) => {
+            if(p.cat === materia && !respondidasIndices.has(idx)) {
+                disponibles.push(idx);
+            }
+        });
+
+        if(disponibles.length === 0) {
+            alert(`No quedan más preguntas de ${materia}. ¡Gira de nuevo!`);
+            document.getElementById('spin-btn').disabled = false;
+            canvas.style.transform = 'rotate(0deg)';
+            return;
+        }
+
+        const randomIdx = disponibles[Math.floor(Math.random() * disponibles.length)];
+        mostrarUI(bancoPreguntas[randomIdx], randomIdx);
+    }
+
+    function mostrarUI(p, idx) {
+        const container = document.getElementById('quiz-container');
+        container.style.display = 'block';
+        
+        const tag = document.getElementById('materia-tag');
+        tag.innerText = p.cat;
+        tag.style.backgroundColor = subjects.find(s => s.name === p.cat).color;
+        
+        document.getElementById('pregunta-texto').innerText = p.q;
+        
+        const box = document.getElementById('opciones-box');
+        box.innerHTML = '';
+
+        // Clonar y barajar opciones para que no siempre estén en el mismo orden
+        let shuffledOptions = [...p.o].sort(() => Math.random() - 0.5);
+
+        shuffledOptions.forEach((opt) => {
+            const btn = document.createElement('button');
+            btn.className = 'option';
+            btn.innerText = opt;
+            btn.onclick = () => validar(opt, p.c, idx);
+            box.appendChild(btn);
+        });
+        
+        // Scroll suave hacia la pregunta
+        container.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function validar(elegida, correcta, indexOriginal) {
+        respondidasIndices.add(indexOriginal);
+        
+        if(elegida === correcta) {
+            score += 1.8;
+            alert("✅ ¡Excelente!");
+        } else {
+            alert(`❌ Incorrecto. La respuesta era: ${correcta}`);
+        }
+        
+        document.getElementById('score').innerText = Math.round(score);
+        document.getElementById('counter').innerText = respondidasIndices.size;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('spin-btn').disabled = false;
+        canvas.style.transform = 'rotate(0deg)'; 
+    }
+</script>
+</body>
+</html>

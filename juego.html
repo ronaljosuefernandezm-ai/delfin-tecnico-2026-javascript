@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulacro PRO - 278 Preguntas</title>
+    <style>
+        :root {
+            --primary: #1a2a6c;
+            --accent: #f24e1e;
+            --bg: #f0f2f5;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 10px; }
+
+        /* Timer y Stats */
+        .status-bar {
+            background: var(--primary); color: white; width: 100%; max-width: 800px;
+            padding: 15px; border-radius: 10px; display: flex; justify-content: space-around;
+            position: sticky; top: 10px; z-index: 100; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .timer-warning { color: #ffeb3b; font-weight: bold; animation: blink 1s infinite; }
+
+        /* Ruleta */
+        .wheel-box { position: relative; width: 260px; height: 260px; margin: 20px 0; }
+        #canvas { width: 100%; height: 100%; border-radius: 50%; transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1); border: 5px solid #fff; }
+        .arrow { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 30px; height: 30px; background: var(--accent); clip-path: polygon(50% 100%, 0 0, 100% 0); z-index: 5; }
+        #spin-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; border-radius: 50%; border: none; background: #333; color: white; cursor: pointer; font-weight: bold; }
+
+        /* Pregunta */
+        #quiz-container { background: white; width: 100%; max-width: 700px; padding: 25px; border-radius: 15px; display: none; margin-top: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .subject-label { font-weight: bold; text-transform: uppercase; padding: 5px 12px; border-radius: 5px; color: white; display: inline-block; margin-bottom: 10px; }
+        .option { display: block; width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; text-align: left; cursor: pointer; background: white; font-size: 1rem; }
+        .option:hover { background: #f8f9fa; border-color: var(--primary); }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="status-bar">
+        <div>⏳ <span id="timer">04:00:00</span></div>
+        <div>📝 Preguntas: <span id="counter">0</span>/278</div>
+        <div>🏆 Puntaje: <span id="score">0</span></div>
+    </div>
+
+    <div class="wheel-box">
+        <div class="arrow"></div>
+        <canvas id="canvas" width="300" height="300"></canvas>
+        <button id="spin-btn" onclick="spin()">GIRAR</button>
+    </div>
+
+    <div id="quiz-container">
+        <div id="materia-tag" class="subject-label"></div>
+        <p id="pregunta-texto" style="font-size: 1.2rem; font-weight: 500;"></p>
+        <div id="opciones-box"></div>
+    </div>
+
+<script>
+    // --- BASE DE DATOS DE 278 PREGUNTAS (ESTRUCTURA EXPANDIBLE) ---
+    // Nota: Aquí colocas las 278 preguntas. El sistema filtrará las que ya respondiste.
+    const rawData = [
+        { cat: "Matemáticas", q: "Un tanque se llena en 4 horas con un grifo A. ¿En cuánto se llena con dos grifos iguales?", o: ["2 horas", "4 horas", "8 horas", "1 hora"], c: 0 },
+        { cat: "Lectura Crítica", q: "La intención principal de un editorial periodístico es:", o: ["Informar", "Persuadir/Opinar", "Entretener", "Vender"], c: 1 },
+        { cat: "Ciencias Naturales", q: "¿Qué organelo es responsable de la respiración celular?", o: ["Núcleo", "Ribosoma", "Mitocondria", "Lisosoma"], c: 2 },
+        { cat: "Sociales", q: "La Revolución Industrial nació en:", o: ["Francia", "EE.UU", "Inglaterra", "Alemania"], c: 2 },
+        { cat: "Inglés", q: "I have __ my homework already.", o: ["do", "did", "done", "doing"], c: 2 },
+        // ... Agrega aquí el resto hasta completar las 278
+    ];
+
+    // Llenar datos ficticios para completar las 278 si no están todas (Solo para demostración)
+    const bancoPreguntas = [...rawData];
+    while(bancoPreguntas.length < 278) {
+        let clone = {...rawData[Math.floor(Math.random()*rawData.length)]};
+        bancoPreguntas.push(clone);
+    }
+
+    // Variables de Estado
+    let respondidasIndices = new Set();
+    let score = 0;
+    let totalSeconds = 4 * 60 * 60; // 4 Horas reales
+    const subjects = [
+        { name: "Matemáticas", color: "#e74c3c" },
+        { name: "Lectura Crítica", color: "#3498db" },
+        { name: "Ciencias Naturales", color: "#2ecc71" },
+        { name: "Sociales", color: "#f1c40f" },
+        { name: "Inglés", color: "#9b59b6" }
+    ];
+
+    // Cronómetro
+    const timerElement = document.getElementById('timer');
+    const interval = setInterval(() => {
+        if (totalSeconds <= 0) {
+            clearInterval(interval);
+            alert("¡TIEMPO AGOTADO! Revisa tu puntaje final.");
+            location.reload();
+        }
+        totalSeconds--;
+        let h = Math.floor(totalSeconds / 3600);
+        let m = Math.floor((totalSeconds % 3600) / 60);
+        let s = totalSeconds % 60;
+        timerElement.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        if(totalSeconds < 600) timerElement.classList.add('timer-warning');
+    }, 1000);
+
+    // Dibujar Ruleta
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    function draw() {
+        let angle = (2 * Math.PI) / subjects.length;
+        subjects.forEach((s, i) => {
+            ctx.beginPath(); ctx.fillStyle = s.color; ctx.moveTo(150, 150);
+            ctx.arc(150, 150, 150, i * angle, (i + 1) * angle); ctx.fill();
+            ctx.save(); ctx.translate(150, 150); ctx.rotate(i * angle + angle/2);
+            ctx.fillStyle = "white"; ctx.font = "bold 14px Arial"; ctx.fillText(s.name.substring(0,5), 80, 5); ctx.restore();
+        });
+    }
+    draw();
+
+    // Lógica de Giro
+    function spin() {
+        if(respondidasIndices.size >= 278) return alert("¡Simulacro completado!");
+        document.getElementById('spin-btn').disabled = true;
+        const extraDeg = Math.floor(Math.random() * 360) + 1800;
+        canvas.style.transform = `rotate(${extraDeg}deg) `;
+
+        setTimeout(() => {
+            const actualDeg = extraDeg % 360;
+            const index = Math.floor((360 - actualDeg) / (360 / subjects.length)) % subjects.length;
+            generarPregunta(subjects[index].name);
+        }, 4000);
+    }
+
+    function generarPregunta(materia) {
+        // Filtrar preguntas de esa materia que NO hayan sido respondidas
+        const disponibles = bancoPreguntas.filter((p, index) => p.cat === materia && !respondidasIndices.has(index));
+        
+        if(disponibles.length === 0) {
+            alert(`Ya respondiste todas las de ${materia}. ¡Gira de nuevo!`);
+            document.getElementById('spin-btn').disabled = false;
+            return;
+        }
+
+        const preguntaSeleccionada = disponibles[Math.floor(Math.random() * disponibles.length)];
+        const originalIndex = bancoPreguntas.indexOf(preguntaSeleccionada);
+        
+        mostrarUI(preguntaSeleccionada, originalIndex);
+    }
+
+    function mostrarUI(p, idx) {
+        document.getElementById('quiz-container').style.display = 'block';
+        const tag = document.getElementById('materia-tag');
+        tag.innerText = p.cat;
+        tag.style.backgroundColor = subjects.find(s => s.name === p.cat).color;
+        document.getElementById('pregunta-texto').innerText = p.q;
+        
+        const box = document.getElementById('opciones-box');
+        box.innerHTML = '';
+        p.o.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'option';
+            btn.innerText = opt;
+            btn.onclick = () => validar(i, p.c, idx);
+            box.appendChild(btn);
+        });
+    }
+
+    function validar(elegida, correcta, indexOriginal) {
+        respondidasIndices.add(indexOriginal);
+        if(elegida === correcta) {
+            score += 1.8; // Para llegar a 500 aprox
+            alert("✅ ¡Correcto!");
+        } else {
+            alert("❌ Incorrecto.");
+        }
+        
+        document.getElementById('score').innerText = Math.round(score);
+        document.getElementById('counter').innerText = respondidasIndices.size;
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('spin-btn').disabled = false;
+        canvas.style.transform = 'rotate(0deg)'; // Reset visual suave
+    }
+</script>
+</body>
+</html>
